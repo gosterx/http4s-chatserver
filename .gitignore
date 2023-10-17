@@ -1,0 +1,6 @@
+.bloop/
+.metals/
+.vscode/
+.idea/
+.bsp/
+target/
