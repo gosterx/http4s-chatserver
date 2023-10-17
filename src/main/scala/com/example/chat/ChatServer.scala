@@ -1,6 +1,7 @@
 package com.example.chat
 
 import cats.effect.Async
+import cats.effect.kernel.Concurrent
 import cats.syntax.all.*
 import com.comcast.ip4s.*
 import fs2.io.net.Network
@@ -11,29 +12,11 @@ import org.http4s.server.middleware.Logger
 
 object ChatServer:
 
-  def run[F[_]: Async: Network]: F[Nothing] = {
-    for {
-      client <- EmberClientBuilder.default[F].build
-      helloWorldAlg = HelloWorld.impl[F]
-      jokeAlg = Jokes.impl[F](client)
-
-      // Combine Service Routes into an HttpApp.
-      // Can also be done via a Router if you
-      // want to extract segments not checked
-      // in the underlying routes.
-      httpApp = (
-        ChatRoutes.helloWorldRoutes[F](helloWorldAlg) <+>
-        ChatRoutes.jokeRoutes[F](jokeAlg)
-      ).orNotFound
-
-      // With Middlewares in place
-      finalHttpApp = Logger.httpApp(true, true)(httpApp)
-
-      _ <- 
-        EmberServerBuilder.default[F]
-          .withHost(ipv4"0.0.0.0")
-          .withPort(port"8080")
-          .withHttpApp(finalHttpApp)
-          .build
-    } yield ()
-  }.useForever
+  def run[F[_]: Async: Network: Concurrent]: F[Nothing] =
+    EmberServerBuilder.default[F]
+      .withHost(ipv4"0.0.0.0")
+      .withPort(port"8080")
+      .withHttpWebSocketApp(websocketBuilder =>
+        Logger.httpApp[F](true, true)(ChatRoutes.chatRoutes[F](websocketBuilder).orNotFound)
+      )
+      .build.useForever

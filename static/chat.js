@@ -19,10 +19,10 @@ var chat = {}; // Namespace
 	};
 
     chat.connect = function() {
-        var url = new URL('/ws/' + encodeURI(chat.user), window.location.href);
+        var url = new URL('/ws/' + encodeURI(chat.user), "http://localhost:8080");
         url.protocol = url.protocol.replace('http', 'ws');
 
-        chat.ws = new WebSocket(url.href);
+        chat.ws = new WebSocket(url);
         chat.ws.onopen = function(evt) {
             chat.writeOutput('Connection established');
             chat.writeOutput('Type \'/help\' for a list of commands');
@@ -60,6 +60,7 @@ var chat = {}; // Namespace
 				// Set the username first if we still need one
 				if (sEntry.length > 0) {
 					chat.user = sEntry;
+                    chat.writeOutput(chat.user)
                     chat.connect();
 				}
 			}
