@@ -13,7 +13,7 @@ import fs2.concurrent.Topic
 
 object ChatServer:
 
-  def run[F[_]: Async: Network: Concurrent](queue: Queue[F, WebSocketFrame], topic: Topic[F, WebSocketFrame]): F[Nothing] =
+  def run[F[_]: Async: Network: Concurrent](queue: Queue[F, FromClient], topic: Topic[F, ToClient]): F[Nothing] =
     EmberServerBuilder.default[F]
       .withHost(ipv4"0.0.0.0")
       .withPort(port"8080")
