@@ -23,20 +23,20 @@ object ChatRoutes:
     val dsl = new Http4sDsl[F] {}
     import dsl.*
     HttpRoutes.of[F] {
-      case GET -> Root / "ws" / userName =>
+      case GET -> Root / "ws" / UserName(userName) =>
         def fromClient: Pipe[F, WebSocketFrame, Unit] = (wsfStream: fs2.Stream[F, WebSocketFrame]) =>
-          val initialStream: Stream[F, InputMessage] = Stream.emit(EnterRoom(UserName(userName)))
+          val initialStream: Stream[F, InputMessage] = Stream.emit(EnterRoom(userName))
 
           val parsedWebSocketInput: Stream[F, InputMessage] =
             wsfStream.collect {
-              case WebSocketFrame.Text(text, _) => domain.InputMessage.parse(UserName(userName), text)
-              case _: WebSocketFrame.Close      => Disconnect(UserName(userName))
+              case WebSocketFrame.Text(text, _) => domain.InputMessage.parse(userName, text)
+              case _: WebSocketFrame.Close      => Disconnect(userName)
             }
 
           (initialStream ++ parsedWebSocketInput).evalMap(queue.offer)
 
         def toClient: Stream[F, WebSocketFrame] =
-          topic.subscribe(1000).filter(_.directedTo(UserName(userName))).map(outputMessage =>
+          topic.subscribe(1000).filter(_.directedTo(userName)).map(outputMessage =>
             WebSocketFrame.Text(outputMessage.textToSend)
           )
 
