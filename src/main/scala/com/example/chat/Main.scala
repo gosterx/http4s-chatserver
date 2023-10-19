@@ -4,6 +4,8 @@ import cats.effect.{ IO, IOApp }
 import cats.effect.std.Queue
 import fs2.concurrent.Topic
 import cats.effect.kernel.Ref
+import com.example.chat.domain.OutputMessage
+import domain.InputMessage
 
 case class State(messageCount: Int)
 
@@ -13,20 +15,14 @@ case class ToClient(message: String)
 object Main extends IOApp.Simple:
   val run =
     for
-      queue <- Queue.unbounded[IO, FromClient]
-      topic <- Topic[IO, ToClient]
-      ref   <- Ref[IO].of(State(0))
+      queue <- Queue.unbounded[IO, InputMessage]
+      topic <- Topic[IO, OutputMessage]
+      ref   <- Ref[IO].of(ChatState(Map.empty))
       _ <-
         fs2.Stream
           .fromQueueUnterminated(queue)
-          .evalMap(fromClient =>
-            ref.modify { currentState =>
-              (
-                State(currentState.messageCount + 1),
-                ToClient(s"(${currentState.messageCount + 1}): ${fromClient.userName} - ${fromClient.message}")
-              )
-            }
-          )
+          .evalMap(msg => ref.modify(_.process(msg)))
+          .flatMap(fs2.Stream.emits)
           .through(topic.publish)
           .compile.drain.start
       _ <- ChatServer.run[IO](queue, topic)

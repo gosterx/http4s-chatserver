@@ -8,25 +8,37 @@ import fs2.{ Pipe, Stream }
 import cats.effect.std.Queue
 import org.http4s.server.websocket.WebSocketBuilder2
 import fs2.concurrent.Topic
+import com.example.chat.domain.domain.UserName
+import com.example.chat.domain.InputMessage.EnterRoom
+import com.example.chat.domain.InputMessage.Disconnect
+import com.example.chat.domain.OutputMessage
+import domain.InputMessage
 
 object ChatRoutes:
   def chatRoutes[F[_]: Concurrent](
-      queue: Queue[F, FromClient],
-      topic: Topic[F, ToClient],
+      queue: Queue[F, InputMessage],
+      topic: Topic[F, OutputMessage],
       websocketBuilder: WebSocketBuilder2[F]
   ): HttpRoutes[F] =
     val dsl = new Http4sDsl[F] {}
     import dsl.*
     HttpRoutes.of[F] {
       case GET -> Root / "ws" / userName =>
-        def toClient: Stream[F, WebSocketFrame] =
-          topic.subscribe(1000).map(toClientMessage => WebSocketFrame.Text(toClientMessage.message))
+        def fromClient: Pipe[F, WebSocketFrame, Unit] = (wsfStream: fs2.Stream[F, WebSocketFrame]) =>
+          val initialStream: Stream[F, InputMessage] = Stream.emit(EnterRoom(UserName(userName)))
 
-        def fromClient: Pipe[F, WebSocketFrame, Unit] = wsfStream =>
-          wsfStream.collect {
-            case WebSocketFrame.Text(text, _) =>
-              FromClient(userName, text)
-          }.evalMap(queue.offer)
+          val parsedWebSocketInput: Stream[F, InputMessage] =
+            wsfStream.collect {
+              case WebSocketFrame.Text(text, _) => domain.InputMessage.parse(UserName(userName), text)
+              case _: WebSocketFrame.Close      => Disconnect(UserName(userName))
+            }
+
+          (initialStream ++ parsedWebSocketInput).evalMap(queue.offer)
+
+        def toClient: Stream[F, WebSocketFrame] =
+          topic.subscribe(1000).filter(_.directedTo(UserName(userName))).map(outputMessage =>
+            WebSocketFrame.Text(outputMessage.textToSend)
+          )
 
         websocketBuilder.build(toClient, fromClient)
     }
