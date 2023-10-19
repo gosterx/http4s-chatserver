@@ -32,5 +32,5 @@ object InputMessage:
       case "/room" :: room :: Nil          => EnterRoom(user, RoomName(room.toLowerCase))
       case "/rooms" :: Nil                 => ListRooms(user)
       case "/members" :: Nil               => ListMembers(user)
-      case command if text.startsWith("/") => InvalidInput(user, s"Unknown command - $command")
+      case command if text.startsWith("/") => InvalidInput(user, s"Unknown command - $text")
       case _                               => Chat(user, text)

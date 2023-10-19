@@ -29,15 +29,15 @@ final case class ChatState(
       case Chat(user, text) =>
         usersRoom.get(user) match
           case Some(room) =>
-            val members = roomMembers(room)
-            (this, List(RoomMessage(members, s"$user: $text")))
+            (this, List(RoomMessage(roomMembers(room), s"$user: $text")))
           case None =>
             (this, List(DirectMessage(user, "You are not currently in a room")))
 
       case EnterRoom(user, room) =>
         (ChatState(usersRoom + (user -> room)), List(DirectMessage(user, s"Joined into $room")))
 
-      case Disconnect(user) => ???
+      case Disconnect(user) => 
+        (ChatState(usersRoom - user), List.empty)
 
       case InvalidInput(user, text) =>
         (this, List(DirectMessage(user, text)))
