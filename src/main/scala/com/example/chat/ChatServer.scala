@@ -24,9 +24,9 @@ object ChatServer extends IOApp.Simple:
     for
       queue <- Queue.unbounded[IO, InputMessage]
       topic <- Topic[IO, OutputMessage]
-      ref   <- Ref[IO].of(ChatState(Map.empty))
+      ref   <- Ref[IO].of(ChatState.empty)
       _ <- {
-        val serverStream = Stream.eval(server[IO](queue, topic))
+        val serverStream = Stream.eval(server[IO](ref, queue, topic))
 
         val keepAliveStream = Stream.awakeEvery[IO](30.seconds).map(_ => KeepAlive).through(topic.publish)
 
@@ -41,6 +41,7 @@ object ChatServer extends IOApp.Simple:
     yield ()
 
   def server[F[_]: Async: Network: Concurrent](
+      chatState: Ref[F, ChatState],
       queue: Queue[F, InputMessage],
       topic: Topic[F, OutputMessage]
   ): F[Nothing] =
@@ -48,6 +49,6 @@ object ChatServer extends IOApp.Simple:
       .withHost(ipv4"0.0.0.0")
       .withPort(port"8080")
       .withHttpWebSocketApp(websocketBuilder =>
-        Logger.httpApp[F](true, true)(ChatRoutes.chatRoutes[F](queue, topic, websocketBuilder).orNotFound)
+        Logger.httpApp[F](true, true)(ChatRoutes.chatRoutes[F](chatState, queue, topic, websocketBuilder).orNotFound)
       )
       .build.useForever

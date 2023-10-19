@@ -36,7 +36,7 @@ final case class ChatState(
       case EnterRoom(user, room) =>
         (ChatState(usersRoom + (user -> room)), List(DirectMessage(user, s"Joined into $room")))
 
-      case Disconnect(user) => 
+      case Disconnect(user) =>
         (ChatState(usersRoom - user), List.empty)
 
       case InvalidInput(user, text) =>
@@ -46,3 +46,6 @@ final case class ChatState(
     usersRoom.collect {
       case (userName, roomName) if roomName == room => userName
     }.toList.distinct
+
+object ChatState:
+  def empty: ChatState = ChatState(Map.empty)

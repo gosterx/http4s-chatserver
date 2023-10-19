@@ -15,9 +15,13 @@ import com.example.chat.domain.OutputMessage
 import domain.InputMessage
 import org.http4s.StaticFile
 import cats.effect.kernel.Async
+import cats.effect.kernel.Ref
+import org.http4s.headers.`Content-Type`
+import org.http4s.MediaType
 
 object ChatRoutes:
   def chatRoutes[F[_]: Async](
+      chatState: Ref[F, ChatState],
       queue: Queue[F, InputMessage],
       topic: Topic[F, OutputMessage],
       websocketBuilder: WebSocketBuilder2[F]
@@ -34,6 +38,21 @@ object ChatRoutes:
         StaticFile
           .fromPath[F](fs2.io.file.Path("static/chat.js"))
           .getOrElseF(NotFound())
+
+      case GET -> Root / "metrics" =>
+        val responseStream = Stream.eval(chatState.get).map { state =>
+          s"""
+             |<html>
+             |  <title>Chat Server State</title>
+             |  <body>
+             |    <div>Users: ${state.usersRoom.keySet.size}</div>
+             |    <div>Rooms: ${state.usersRoom.values.toSet.size}</div>
+             |  </body>
+             |</html>
+              """.stripMargin
+        }
+
+        Ok(responseStream, `Content-Type`(MediaType.text.html))
 
       case GET -> Root / "ws" / UserName(userName) =>
         def fromClient: Pipe[F, WebSocketFrame, Unit] = (wsfStream: fs2.Stream[F, WebSocketFrame]) =>
