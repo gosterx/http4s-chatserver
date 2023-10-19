@@ -1,7 +1,6 @@
 package com.example.chat
 
 import cats.effect.Async
-import cats.effect.kernel.Concurrent
 import com.comcast.ip4s.*
 import fs2.io.net.Network
 import org.http4s.ember.server.EmberServerBuilder
@@ -40,7 +39,7 @@ object ChatServer extends IOApp.Simple:
       }
     yield ()
 
-  def server[F[_]: Async: Network: Concurrent](
+  def server[F[_]: Async: Network](
       chatState: Ref[F, ChatState],
       queue: Queue[F, InputMessage],
       topic: Topic[F, OutputMessage]
